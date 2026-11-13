@@ -36,15 +36,27 @@ The isolated real-client check installs the clean package into separate temporar
 Codex app-server initializes the bundled MCP server and discovers 14 tools. Claude Code's
 MCP health command reports the plugin connected. No LLM turn or normal user profile is used.
 
+## Live Google Drive check
+
+On 2026-11-13, a dedicated Desktop OAuth app connected one consenting account using only
+`drive.appdata`. The Google Cloud project had no linked billing account. Two independent
+local SQLite databases (not two physical laptops) exchanged one explicitly fictional lead:
+upload on A, download on B, update on B, receive on A, idempotent repeat, and deletion on
+both. Every completed pass reported zero pending uploads and zero conflicts. No real
+contacts were uploaded. The fictional lead is hidden by a synced tombstone; its fictional
+audit revisions remain in the app-data store.
+
+Codex installation was also verified in the normal user profile. Public source contains no
+OAuth client downloads, refresh credentials, real contact data or private execution proof.
+
 ## External steps not performed
 
-- No real Google OAuth client/account has been connected and no records uploaded to Google.
-  The account owner must register/configure the Desktop OAuth client and consent on each
-  laptop, then perform a live roundtrip. See [SYNC.md](SYNC.md).
+- Additional laptops/accounts still need their own Google consent. See [SYNC.md](SYNC.md).
 - No public plugin-directory listing, Google verification, publisher approval or provider
   agreement has been submitted. Local installation does not imply public acceptance.
 - Gmail import is documented as a future opt-in feature, not implemented or authorized.
 - No existing personal workbench database was migrated or connected to the new plugins.
 
-These boundaries are intentional: local and protocol-fixture validation is separate from
-Google account acceptance and public directory distribution.
+Local/protocol-fixture tests, the live account roundtrip, and public directory approval are
+separate validation scopes. The live roundtrip does not establish unlimited free capacity
+or public OAuth/plugin-directory approval.

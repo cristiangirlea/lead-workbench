@@ -12,6 +12,7 @@ CDN or telemetry. Codex and Claude Code plugins share the same backend and priva
 - [Install the local plugins](docs/PLUGINS.md)
 - [Optional Google Drive sync and multi-laptop behavior](docs/SYNC.md)
 - [Future features, including optional Gmail import](docs/ROADMAP.md)
+- [Free distribution and storage policy](docs/FREE_SERVICE.md)
 
 ## Start
 

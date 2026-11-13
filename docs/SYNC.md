@@ -3,6 +3,9 @@
 Local mode is the default. Google Drive is an optional shared store for the same user's
 devices, not a database service operated by this project. Both laptops need the same Google
 account and OAuth application. They do not need to be online at the same time.
+Sync must remain within free provider usage; do not link Cloud billing or buy quota/storage
+to make it work. Quota exhaustion stops sync while preserving local changes. See the
+[free-service policy](FREE_SERVICE.md).
 
 ## Google setup (operator action)
 
@@ -116,8 +119,8 @@ There is no team sharing or Gmail import in this release. See [ROADMAP.md](ROADM
 
 Automated tests run two/three independent databases and the real HTTP client against a
 local Drive-protocol fixture, plus desktop OAuth callback/state/PKCE tests with fictional
-tokens. These do not establish Google's approval, production quotas, or a successful live
-account connection. Complete a live opt-in test with your registered OAuth client before
+tokens. These do not establish Google's approval or production quotas. A separate live
+roundtrip is recorded in [VALIDATION.md](VALIDATION.md). Complete a live opt-in test with your registered OAuth client before
 relying on Google sync for your only copy of important records.
 
 Sources:
