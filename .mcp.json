@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "lead-workbench": {
+      "command": "python",
+      "args": [
+        "-B",
+        "${CLAUDE_PLUGIN_ROOT}/plugin_server.py"
+      ]
+    }
+  }
+}

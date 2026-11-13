@@ -13,9 +13,10 @@ import unicodedata
 from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import unquote, quote, urlsplit
+from .paths import data_dir
 
 APP_DIR = Path(__file__).resolve().parent
-DEFAULT_DB = APP_DIR / "data" / "leads.sqlite3"
+DEFAULT_DB = data_dir() / "leads.sqlite3"
 SETTINGS_PATH = APP_DIR / "settings.json"
 
 STATUSES = ("research", "qualified", "pending", "sent", "connected", "rejected", "excluded", "uncertain")
@@ -152,7 +153,8 @@ def now_iso():
 
 
 def load_settings(path=None):
-    selected = Path(path) if path else (SETTINGS_PATH if SETTINGS_PATH.exists() else APP_DIR / "settings.example.json")
+    candidates = [data_dir() / "settings.json", SETTINGS_PATH, APP_DIR / "settings.example.json"]
+    selected = Path(path) if path else next(p for p in candidates if p.exists())
     with open(selected, encoding="utf-8") as fh:
         return json.load(fh)
 
@@ -165,6 +167,14 @@ def connect(db_path=None):
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
     conn.executescript(SCHEMA)
+    # Additive migration; existing personal databases remain readable and intact.
+    with _tx(conn):
+        for table in ("leads", "applications"):
+            columns = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+            if "sync_deleted" not in columns:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN sync_deleted INTEGER NOT NULL DEFAULT 0")
+            if "sync_conflicted" not in columns:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN sync_conflicted INTEGER NOT NULL DEFAULT 0")
     return conn
 
 
@@ -384,6 +394,8 @@ def upsert_leads(conn, items, settings, actor="import"):
         for i, (fields, status, ev, ev_url) in enumerate(prepared):
             url = fields["linkedin_url"]
             existing = _row(conn.execute("SELECT * FROM leads WHERE linkedin_url = ?", (url,)).fetchone())
+            if existing and existing.get("sync_deleted"):
+                raise ValidationError("record is deleted; explicitly restore it before importing")
             incoming = {k: v for k, v in fields.items() if v is not None and k != "linkedin_url"}
             merged = dict(existing or {}, **incoming)
             try:
@@ -437,7 +449,7 @@ def edit_lead(conn, lead_id, payload, settings, actor="ui"):
     if "linkedin_url" in fields:
         raise ValidationError("linkedin_url: cannot be edited; it is the lead's key")
     with _tx(conn):
-        existing = _row(conn.execute("SELECT * FROM leads WHERE id = ?", (lead_id,)).fetchone())
+        existing = _row(conn.execute("SELECT * FROM leads WHERE sync_deleted = 0 AND id = ?", (lead_id,)).fetchone())
         if existing is None:
             raise NotFound(f"lead {lead_id} not found")
         for key in ENUM_FIELDS:
@@ -464,7 +476,7 @@ def update_status(conn, lead_id, to_status, evidence, evidence_url=None, actor="
     if evidence_url:
         evidence_url = check_http_url("evidence_url", evidence_url)
     with _tx(conn):
-        row = conn.execute("SELECT status FROM leads WHERE id = ?", (lead_id,)).fetchone()
+        row = conn.execute("SELECT status FROM leads WHERE sync_deleted = 0 AND id = ?", (lead_id,)).fetchone()
         if row is None:
             raise NotFound(f"lead {lead_id} not found")
         current = row["status"]
@@ -484,9 +496,9 @@ def find_lead(conn, ref):
     if isinstance(ref, int) or (isinstance(ref, str) and ref.isascii() and ref.isdigit()):
         if not 0 < int(ref) < MAX_ID:
             raise NotFound(f"lead {ref} not found")
-        row = conn.execute("SELECT * FROM leads WHERE id = ?", (int(ref),)).fetchone()
+        row = conn.execute("SELECT * FROM leads WHERE sync_deleted = 0 AND id = ?", (int(ref),)).fetchone()
     else:
-        row = conn.execute("SELECT * FROM leads WHERE linkedin_url = ?", (canonical_linkedin_url(ref),)).fetchone()
+        row = conn.execute("SELECT * FROM leads WHERE sync_deleted = 0 AND linkedin_url = ?", (canonical_linkedin_url(ref),)).fetchone()
     if row is None:
         raise NotFound(f"lead {ref} not found")
     return dict(row)
@@ -503,7 +515,7 @@ def lead_events(conn, lead_id):
 
 
 def list_leads(conn, status=None, q=None, limit=500):
-    sql, args = "SELECT * FROM leads WHERE 1=1", []
+    sql, args = "SELECT * FROM leads WHERE sync_deleted = 0", []
     if status:
         if status not in STATUSES:
             raise ValidationError(f"status: one of {', '.join(STATUSES)}")
@@ -556,6 +568,8 @@ def excluded_location(country, location, settings):
 def queue_blockers(lead, settings):
     """Reasons a lead may not be invited yet; an empty list means it is ready."""
     reasons = []
+    if lead.get("sync_conflicted"):
+        reasons.append("unresolved sync conflict: review the conflicting revisions first")
     if lead["status"] != "qualified":
         reasons.append(f"status is '{lead['status']}', not 'qualified'")
     if lead.get("hold_reason"):
@@ -601,7 +615,7 @@ def budget_view(lead, settings):
 
 
 def queue(conn, settings, explain=False):
-    leads = conn.execute("SELECT * FROM leads WHERE status = 'qualified'").fetchall()
+    leads = conn.execute("SELECT * FROM leads WHERE sync_deleted = 0 AND status = 'qualified'").fetchall()
     preferred = {m.lower() for m in settings.get("preferred_company_markets", [])}
     ready, blocked = [], []
     for row in leads:
@@ -694,6 +708,8 @@ def upsert_applications(conn, items, actor="import"):
             existing = _row(conn.execute(
                 "SELECT * FROM applications WHERE company_key = ? AND role_title = ? AND applied_date = ?",
                 key).fetchone())
+            if existing and existing.get("sync_deleted"):
+                raise ValidationError("record is deleted; explicitly restore it before importing")
             incoming = {k: v for k, v in fields.items() if v is not None}
             incoming["role_title"], incoming["applied_date"] = key[1], key[2]
             merged = dict(existing or {}, **incoming)
@@ -728,7 +744,7 @@ def set_revisit_status(conn, app_id, revisit_status, actor="ui"):
     if revisit_status not in REVISIT_STATUSES:
         raise ValidationError(f"revisit_status: one of {', '.join(REVISIT_STATUSES)}")
     with _tx(conn):
-        row = conn.execute("SELECT revisit_status FROM applications WHERE id = ?", (app_id,)).fetchone()
+        row = conn.execute("SELECT revisit_status FROM applications WHERE sync_deleted = 0 AND id = ?", (app_id,)).fetchone()
         if row is None:
             raise NotFound(f"application {app_id} not found")
         conn.execute("UPDATE applications SET revisit_status = ?, updated_at = ? WHERE id = ?",
@@ -740,8 +756,8 @@ def set_revisit_status(conn, app_id, revisit_status, actor="ui"):
 
 def list_applications(conn, revisit_only=False, settings=None):
     rows = [dict(r) for r in conn.execute(
-        "SELECT a.*, (SELECT count(*) FROM leads l WHERE l.company_key = a.company_key) AS lead_count"
-        " FROM applications a ORDER BY a.updated_at DESC, a.id DESC").fetchall()]
+        "SELECT a.*, (SELECT count(*) FROM leads l WHERE l.company_key = a.company_key AND l.sync_deleted = 0) AS lead_count"
+        " FROM applications a WHERE a.sync_deleted = 0 ORDER BY a.updated_at DESC, a.id DESC").fetchall()]
     if revisit_only:
         bases = set((settings or {}).get("application_revisit", {}).get(
             "worth_revisiting_bases", ["automated_email_only", "ats_auto_reject_proven", "unknown"]))
@@ -754,7 +770,7 @@ def company_applications(conn, key):
     if not key:
         return []
     return [dict(r) for r in conn.execute(
-        "SELECT * FROM applications WHERE company_key = ? ORDER BY applied_date DESC", (key,)).fetchall()]
+        "SELECT * FROM applications WHERE sync_deleted = 0 AND company_key = ? ORDER BY applied_date DESC", (key,)).fetchall()]
 
 
 # ---------------------------------------------------------------- runs, stats, export
@@ -797,13 +813,13 @@ def list_runs(conn, limit=50):
 
 def stats(conn, settings):
     by_status = {s: 0 for s in STATUSES}
-    for r in conn.execute("SELECT status, count(*) n FROM leads GROUP BY status"):
+    for r in conn.execute("SELECT status, count(*) n FROM leads WHERE sync_deleted = 0 GROUP BY status"):
         by_status[r["status"]] = r["n"]
     return {
         "leads": sum(by_status.values()),
         "by_status": by_status,
         "queue_ready": len(queue(conn, settings)["ready"]),
-        "applications": conn.execute("SELECT count(*) FROM applications").fetchone()[0],
+        "applications": conn.execute("SELECT count(*) FROM applications WHERE sync_deleted = 0").fetchone()[0],
         "revisit_open": len(list_applications(conn, revisit_only=True, settings=settings)),
         "runs": conn.execute("SELECT count(*) FROM runs").fetchone()[0],
     }
@@ -814,4 +830,4 @@ EXPORT_COLUMNS = ("id", "linkedin_url", "status") + tuple(k for k in LEAD_FIELDS
 
 
 def export_leads(conn):
-    return [dict(r) for r in conn.execute("SELECT * FROM leads ORDER BY id").fetchall()]
+    return [dict(r) for r in conn.execute("SELECT * FROM leads WHERE sync_deleted = 0 ORDER BY id").fetchall()]

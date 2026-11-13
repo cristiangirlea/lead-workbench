@@ -47,9 +47,9 @@ COMPACT = ("id", "linkedin_url", "name", "company", "title", "status", "contact_
 
 
 def build_parser():
-    p = argparse.ArgumentParser(prog="python -m app", description="Local LinkedIn lead workbench (no network access).")
-    p.add_argument("--db", help="SQLite file (default app/data/leads.sqlite3 or $LNAPP_DB)")
-    p.add_argument("--settings", help="policy JSON (default app/settings.json, else app/settings.example.json)")
+    p = argparse.ArgumentParser(prog="python -m app", description="Local lead workbench with optional Google Drive sync.")
+    p.add_argument("--db", help="SQLite file (default private workbench data directory or $LNAPP_DB)")
+    p.add_argument("--settings", help="policy JSON (default private settings.json, legacy app/settings.json, else bundled example)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("init", help="create the database if missing")
@@ -98,6 +98,19 @@ def build_parser():
 
     s = sub.add_parser("policy", help="print the current policy")
 
+    s = sub.add_parser("google-connect", help="opt in to Drive app-data access using browser consent (no Gmail)")
+    s.add_argument("--client", required=True, help="Google OAuth Desktop client JSON, kept outside Git")
+    sub.add_parser("google-disconnect", help="remove credentials from this laptop; does not erase Drive data")
+    sub.add_parser("sync-google", help="upload/download records through the connected Google account")
+    sub.add_parser("sync-conflicts", help="show unresolved concurrent edits")
+    s = sub.add_parser("sync-resolve", help="explicitly choose a current conflicting revision")
+    s.add_argument("record")
+    s.add_argument("revision")
+    for name, deleted in (("delete-record", True), ("restore-record", False)):
+        s = sub.add_parser(name, help="record a syncable tombstone" if deleted else "explicitly restore a deleted record")
+        s.add_argument("kind", choices=("lead", "application"))
+        s.add_argument("id", type=int)
+
     s = sub.add_parser("serve", help="run the local UI on 127.0.0.1")
     s.add_argument("--port", type=int, default=8765)
     return p
@@ -110,6 +123,9 @@ def run(argv=None):
         settings = core.load_settings(args.settings)
         if args.cmd == "policy":
             return _out(settings)
+        if args.cmd in ("google-connect", "google-disconnect"):
+            from . import google_drive
+            return _out(google_drive.connect_google(args.client) if args.cmd == "google-connect" else google_drive.disconnect())
         if args.cmd == "serve":
             from . import server
             return server.serve(args.db, settings, args.port)
@@ -135,7 +151,18 @@ def run(argv=None):
 
 def _dispatch(args, conn, settings):
     cmd = args.cmd
-    if cmd == "init":
+    if cmd in ("sync-google", "sync-conflicts", "sync-resolve", "delete-record", "restore-record"):
+        from . import sync
+        if cmd == "sync-google":
+            from .google_drive import Drive
+            _out(sync.synchronize(conn, Drive()))
+        elif cmd == "sync-conflicts":
+            _out(sync.conflicts(conn))
+        elif cmd == "sync-resolve":
+            _out(sync.resolve(conn, args.record, args.revision))
+        else:
+            _out(sync.set_deleted(conn, args.kind, args.id, cmd == "delete-record"))
+    elif cmd == "init":
         _out({"ok": True, "leads": conn.execute("SELECT count(*) FROM leads").fetchone()[0]})
     elif cmd == "upsert":
         res = core.upsert_leads(conn, _read_json(args.file), settings, actor=args.actor)

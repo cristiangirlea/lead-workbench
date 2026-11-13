@@ -36,3 +36,9 @@ venv/
 .claude/
 .codex/
 .DS_Store
+
+# Google client downloads and local credential files
+google-credentials.bin
+client_secret*.json
+google-client*.json
+.credentials-*

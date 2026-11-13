@@ -1,0 +1,16 @@
+{
+  "name": "lead-workbench-local",
+  "owner": {
+    "name": "Cristian Girlea"
+  },
+  "plugins": [
+    {
+      "name": "lead-workbench",
+      "source": "./",
+      "description": "Local lead research and application tracking, with optional user-controlled sync.",
+      "version": "0.2.0",
+      "category": "Productivity"
+    }
+  ],
+  "description": "Local lead research and application tracking plugins."
+}

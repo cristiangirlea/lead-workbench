@@ -4,10 +4,14 @@ A local record of LinkedIn networking research: who you found, the evidence behi
 the invitation draft, what happened to the invitation, and which companies rejected an
 application and are worth reaching through a person.
 
-It is a cache and a workflow, not an automation tool. It never contacts LinkedIn, never sends
-invitations, never scrapes, and makes no outbound network request. Its web UI communicates
-with a local HTTP server. Python 3.10+ standard library only; no dependencies, no CDN,
-no telemetry. Data lives in `app/data/leads.sqlite3`.
+It records research and completed actions; it never contacts LinkedIn, sends invitations or
+scrapes. Local mode makes no outbound requests. Optional Google Drive sync sends your records
+to the account you explicitly connect. Python 3.10+ standard library only; no dependencies,
+CDN or telemetry. Codex and Claude Code plugins share the same backend and private data directory.
+
+- [Install the local plugins](docs/PLUGINS.md)
+- [Optional Google Drive sync and multi-laptop behavior](docs/SYNC.md)
+- [Future features, including optional Gmail import](docs/ROADMAP.md)
 
 ## Start
 
@@ -35,6 +39,13 @@ python -m app serve            # http://127.0.0.1:8765/  (Ctrl+C to stop; loopba
 | `record-run [file\|-]` | log a session: `{"kind","summary","started_at?","finished_at?","counts?":{name:int},"notes?"}` |
 
 Global options: `--db PATH` (or `LNAPP_DB`), `--settings PATH`. Exit codes: 2 bad input, 3 not found.
+Default data: `%LOCALAPPDATA%/lead-workbench` on Windows, otherwise
+`${XDG_DATA_HOME:-~/.local/share}/lead-workbench`. Override with `LEAD_WORKBENCH_HOME`.
+Plugin updates do not move your data. Existing `app/data/` databases are not moved automatically.
+
+Sync commands: `google-connect --client PATH`, `google-disconnect`, `sync-google`,
+`sync-conflicts`, `sync-resolve RECORD REVISION`, `delete-record KIND ID`, `restore-record KIND ID`.
+See the sync guide before connecting or uploading records.
 
 ## Lead fields
 
@@ -81,7 +92,7 @@ The default example accepts worldwide hiring and has no country exclusions or bu
 
 If configured, excluded locations are matched on `contact_country` (country name, codes,
 local spellings, major cities) and on whole words in `contact_location`, ignoring accents. The
-lists are in `excluded_contact_country_aliases` in your private `app/settings.json`. Only the stated location
+lists are in `excluded_contact_country_aliases` in your private policy JSON. Only the stated location
 is used, never a name.
 
 ## Past applications
@@ -103,18 +114,19 @@ like Ltd/GmbH ignored).
 
 ## Policy
 
-The app starts with the neutral `app/settings.example.json`. Copy it to `app/settings.json`
-(ignored by Git) to customize preferred markets, hiring eligibility, optional location filters,
+The app starts with the neutral `app/settings.example.json`. Copy it to `settings.json`
+in your private data directory to customize preferred markets, hiring eligibility, optional location filters,
 company types, a budget goal, and the invitation note limit. Restart after editing. You can also
-pass `--settings PATH` before the command. The existing eligibility vocabulary includes
+pass `--settings PATH` before the command. Legacy `app/settings.json` is still supported. The existing eligibility vocabulary includes
 `europe_including_romania`; select only values whose meaning matches your situation.
 
 ## Source layout
 
 `app/core.py` contains storage and workflow rules; `app/cli.py` provides the JSON CLI;
-`app/server.py` exposes the local HTTP API. The frontend is in `app/static/` and calls that API.
+`app/server.py` exposes the local HTTP API; `app/mcp_server.py` exposes the plugin tools. The frontend is in `app/static/` and calls that API.
 The frontend and API are separate source files served by one Python process.
 There is no hosted service, AI provider dependency, or automatic LinkedIn integration.
+`app/sync.py` handles record revisions and conflicts; `app/google_drive.py` supplies optional Drive transport.
 
 ## Data and examples
 
@@ -153,3 +165,13 @@ prefixes cells starting with `= + - @`.
 ```
 python -m unittest discover -s tests -t . -v
 ```
+
+For real client installation/startup checks in isolated profiles (both clients must be installed):
+
+```sh
+python scripts/package_plugin.py --out local/validation-package
+python scripts/validate_plugins.py local/validation-package
+```
+
+The client check starts MCP connections without running an AI turn or connecting Google.
+See [validation scope](docs/VALIDATION.md) for what has and has not been verified.

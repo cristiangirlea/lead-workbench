@@ -1,0 +1,10 @@
+{
+  "name": "lead-workbench",
+  "version": "0.2.0",
+  "description": "Local lead research and application tracking, with optional user-controlled sync.",
+  "author": {
+    "name": "Cristian Girlea"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/cristiangirlea/lead-workbench"
+}

@@ -355,7 +355,7 @@ function renderPolicy() {
       row("Skipped company types", (p.skip_company_types || []).join(", ").replaceAll("_", " ")),
       row("Budget goal", goal.amount == null ? "Not configured" : `${goal.amount} ${goal.currency} per ${goal.period}, ${goal.employment || "unspecified"}`),
       row("Invitation note limit", `${(p.invitation || {}).max_note_chars} characters; sent by a person only`)),
-    h("p", { class: "note" }, "Copy app/settings.example.json to app/settings.json, edit your policy, then restart the app."));
+    h("p", { class: "note" }, "Copy app/settings.example.json to settings.json in your private workbench data directory, edit your policy, then restart the app."));
 }
 
 // ---------------------------------------------------------------- wiring
