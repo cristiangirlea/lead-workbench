@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="__CSRF_TOKEN__">
+<title>Lead workbench</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="bar">
+  <h1>Lead workbench</h1>
+  <nav class="views" aria-label="Views">
+    <button type="button" data-view="leads" aria-current="page">Leads</button>
+    <button type="button" data-view="revisit">Revisit companies</button>
+    <button type="button" data-view="runs">Run history</button>
+    <button type="button" data-view="policy">Policy</button>
+  </nav>
+  <p class="counts" id="counts" aria-live="polite"></p>
+</header>
+
+<main>
+  <section id="view-leads" class="split">
+    <div class="list-pane">
+      <form class="filters" id="filters" role="search">
+        <label>Search <input type="search" id="q" placeholder="Name, company, title or URL"></label>
+        <label>Status <select id="status"><option value="">Any</option></select></label>
+        <label class="check"><input type="checkbox" id="ready"> Ready to invite</label>
+        <button type="button" id="add-toggle" class="quiet" aria-expanded="false" aria-controls="add-form">Add lead</button>
+      </form>
+      <form id="add-form" class="add" hidden>
+        <label>LinkedIn profile <input name="linkedin_url" required placeholder="https://www.linkedin.com/in/…"></label>
+        <label>Name <input name="name"></label>
+        <label>Company <input name="company"></label>
+        <label>Title <input name="title"></label>
+        <button type="submit">Save lead</button>
+      </form>
+      <table class="leads">
+        <thead><tr><th scope="col">Name</th><th scope="col">Company</th><th scope="col">Status</th><th scope="col">Queue</th><th scope="col">Checked</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p id="empty" class="empty" hidden></p>
+    </div>
+    <aside class="detail-pane" id="detail" aria-live="polite">
+      <p class="empty">Select a lead to see its evidence, draft and history.</p>
+    </aside>
+  </section>
+
+  <section id="view-revisit" class="sheet" hidden>
+    <h2>Companies that rejected an application</h2>
+    <p class="lede">Rejections where no person is known to have screened you. Find a hiring manager or recruiter there and add them as leads.
+      Import records with <code>python -m app upsert-applications file.json</code>.</p>
+    <label class="check"><input type="checkbox" id="revisit-only" checked> Only open and worth revisiting</label>
+    <table class="leads"><thead><tr><th scope="col">Company</th><th scope="col">Role</th><th scope="col">Rejected</th><th scope="col">How it was decided</th><th scope="col">Evidence</th><th scope="col">Leads</th><th scope="col">Revisit</th></tr></thead>
+      <tbody id="app-rows"></tbody></table>
+    <p id="app-empty" class="empty" hidden></p>
+  </section>
+
+  <section id="view-runs" class="sheet" hidden>
+    <h2>Run history</h2>
+    <p class="lede">Sessions logged with <code>python -m app record-run run.json</code>.</p>
+    <table class="leads"><thead><tr><th scope="col">Recorded</th><th scope="col">Kind</th><th scope="col">Summary</th><th scope="col">Counts</th></tr></thead>
+      <tbody id="run-rows"></tbody></table>
+    <p id="run-empty" class="empty" hidden></p>
+  </section>
+
+  <section id="view-policy" class="sheet" hidden>
+    <h2>Current policy</h2>
+    <div id="policy"></div>
+  </section>
+</main>
+<p id="toast" class="toast" role="status" hidden></p>
+<script src="/static/app.js"></script>
+</body>
+</html>

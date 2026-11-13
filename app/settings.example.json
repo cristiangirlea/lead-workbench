@@ -1,0 +1,36 @@
+{
+  "policy_version": "example-v1",
+  "statement": "Record evidence from your own research. Verify hiring eligibility and budgets from sources. Review and send invitations yourself; this app only tracks the workflow.",
+  "preferred_company_markets": [],
+  "excluded_contact_countries": [],
+  "excluded_contact_country_aliases": {},
+  "required_eligibility": [
+    "worldwide"
+  ],
+  "rejected_eligibility": [],
+  "skip_company_types": [],
+  "goal": {},
+  "budget_rules": {
+    "published_preferred": true,
+    "unknown_is_explicit": true,
+    "infer_from_country": false,
+    "convert_periods_or_currencies": false
+  },
+  "invitation": {
+    "max_note_chars": 300,
+    "auto_send": false
+  },
+  "application_revisit": {
+    "worth_revisiting_bases": [
+      "automated_email_only",
+      "ats_auto_reject_proven",
+      "unknown"
+    ],
+    "target_roles": [
+      "hiring manager",
+      "engineering manager",
+      "recruiter",
+      "talent acquisition"
+    ]
+  }
+}

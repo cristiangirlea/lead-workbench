@@ -1,0 +1,17 @@
+[
+  {
+    "linkedin_url": "https://www.linkedin.com/in/lead-workbench-demo-person",
+    "name": "Demo Person (fictional)",
+    "company": "Example Systems",
+    "title": "Engineering Manager",
+    "contact_country": "United Kingdom",
+    "company_type": "product",
+    "eligibility": "worldwide",
+    "eligibility_source_url": "https://example.com/careers",
+    "hiring_signal": "Fictional worldwide engineering role for demonstration",
+    "hiring_source_url": "https://example.com/careers",
+    "invitation_draft": "Hello, I would enjoy connecting about backend engineering.",
+    "status": "qualified",
+    "status_evidence": "Synthetic example, not a real researched contact."
+  }
+]

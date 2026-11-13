@@ -1,0 +1,12 @@
+[
+  {
+    "company": "Example Systems",
+    "role_title": "Backend Engineer (fictional)",
+    "applied_date": "2026-01-01",
+    "outcome": "rejected",
+    "rejection_date": "2026-01-02",
+    "rejection_source": "automated_email",
+    "decision_basis": "automated_email_only",
+    "evidence": "Fictional automated email. No evidence of who made the decision."
+  }
+]
